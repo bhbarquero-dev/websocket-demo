@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+
+    #messages {
+      border: 1px solid #ccc;
+      height: 300px;
+      overflow-y: auto;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #f9f9f9;
+    }
+
+    .message {
+      padding: 8px;
+      margin: 5px 0;
+      background: #e3f2fd;
+      border-radius: 4px;
+    }
+
+    #input {
+      width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    button:hover {
+      background: #1976D2;
+    }
+
+    #status {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>WebSocket Demo</h1>
+
+  <div id="status">Desconectado</div>
+
+  <div id="messages"></div>
+
+  <input
+    type="text"
+    id="input"
+    placeholder="Escribe un mensaje..."
+  />
+
+  <button onclick="enviarMensaje()">Enviar</button>
+
+  <script>
+    const ws = new WebSocket('ws://localhost:8080');
+    const messagesDiv = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const statusEl = document.getElementById('status');
+
+    ws.onopen = () => {
+      statusEl.textContent = 'Conectado ✓';
+      statusEl.style.color = 'green';
+      console.log('Conectado al servidor WebSocket');
+    };
+
+    ws.onmessage = (event) => {
+      const message = document.createElement('div');
+      message.className = 'message';
+      message.textContent = event.data;
+      messagesDiv.appendChild(message);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    };
+
+    ws.onclose = () => {
+      statusEl.textContent = 'Desconectado';
+      statusEl.style.color = 'red';
+      console.log('Desconectado del servidor');
+    };
+
+    ws.onerror = (error) => {
+      console.error('Error:', error);
+      statusEl.textContent = 'Error de conexión';
+      statusEl.style.color = 'orange';
+    };
+
+    function enviarMensaje() {
+      const mensaje = inputEl.value.trim();
+      if (mensaje) {
+        ws.send(mensaje);
+        inputEl.value = '';
+      }
+    }
+
+    inputEl.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        enviarMensaje();
+      }
+    });
+  </script>
+</body>
+</html>
