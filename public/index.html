@@ -57,9 +57,10 @@
   </style>
 </head>
 <body>
-  <h1>WebSocket Demo</h1>
+  <h1>WebSocket Chat</h1>
 
   <div id="status">Desconectado</div>
+  <div id="username-display" style="font-size: 14px; color: #666; margin-bottom: 10px;"></div>
 
   <div id="messages"></div>
 
@@ -67,34 +68,87 @@
     type="text"
     id="input"
     placeholder="Escribe un mensaje..."
+    disabled
   />
 
-  <button onclick="enviarMensaje()">Enviar</button>
+  <button id="sendBtn" onclick="enviarMensaje()" disabled>Enviar</button>
 
   <script>
     const ws = new WebSocket('ws://localhost:8080');
     const messagesDiv = document.getElementById('messages');
     const inputEl = document.getElementById('input');
     const statusEl = document.getElementById('status');
+    const usernameDisplay = document.getElementById('username-display');
+    const sendBtn = document.getElementById('sendBtn');
+
+    let currentUsername = null;
 
     ws.onopen = () => {
       statusEl.textContent = 'Conectado ✓';
       statusEl.style.color = 'green';
-      console.log('Conectado al servidor WebSocket');
+
+      const username = prompt('¿Cuál es tu nombre?');
+      if (username && username.trim()) {
+        currentUsername = username.trim();
+        usernameDisplay.textContent = `Tú: ${currentUsername}`;
+
+        ws.send(JSON.stringify({
+          type: 'setUsername',
+          username: currentUsername
+        }));
+
+        inputEl.disabled = false;
+        sendBtn.disabled = false;
+      } else {
+        ws.close();
+      }
     };
 
-    ws.onmessage = (event) => {
-      const message = document.createElement('div');
-      message.className = 'message';
-      message.textContent = event.data;
-      messagesDiv.appendChild(message);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    ws.onmessage = async (event) => {
+      let data;
+
+      if (event.data instanceof Blob) {
+        data = JSON.parse(await event.data.text());
+      } else {
+        data = JSON.parse(event.data);
+      }
+
+      if (data.type === 'chat') {
+        const message = document.createElement('div');
+        message.className = 'message';
+        message.innerHTML = `<strong>${data.username}:</strong> ${data.text}`;
+        messagesDiv.appendChild(message);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      } else if (data.type === 'userJoined') {
+        const evento = document.createElement('div');
+        evento.style.padding = '8px';
+        evento.style.margin = '5px 0';
+        evento.style.background = '#c8e6c9';
+        evento.style.borderRadius = '4px';
+        evento.style.fontStyle = 'italic';
+        evento.style.color = '#2e7d32';
+        evento.textContent = `✓ ${data.username} se conectó`;
+        messagesDiv.appendChild(evento);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      } else if (data.type === 'userLeft') {
+        const evento = document.createElement('div');
+        evento.style.padding = '8px';
+        evento.style.margin = '5px 0';
+        evento.style.background = '#ffccbc';
+        evento.style.borderRadius = '4px';
+        evento.style.fontStyle = 'italic';
+        evento.style.color = '#d84315';
+        evento.textContent = `✕ ${data.username} se desconectó`;
+        messagesDiv.appendChild(evento);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
     };
 
     ws.onclose = () => {
       statusEl.textContent = 'Desconectado';
       statusEl.style.color = 'red';
-      console.log('Desconectado del servidor');
+      inputEl.disabled = true;
+      sendBtn.disabled = true;
     };
 
     ws.onerror = (error) => {
@@ -106,7 +160,10 @@
     function enviarMensaje() {
       const mensaje = inputEl.value.trim();
       if (mensaje) {
-        ws.send(mensaje);
+        ws.send(JSON.stringify({
+          type: 'chat',
+          text: mensaje
+        }));
         inputEl.value = '';
       }
     }

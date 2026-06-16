@@ -10,21 +10,60 @@ const wss = new WebSocket.Server({ server });
 app.use(express.static(path.join(__dirname, 'public')));
 
 wss.on('connection', (ws) => {
-  console.log('Cliente conectado');
+  ws.username = null;
 
   ws.on('message', (message) => {
-    console.log(`Mensaje recibido: ${message}`);
+    const data = JSON.parse(message);
 
-    // Enviar a todos los clientes conectados
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
+    if (data.type === 'setUsername') {
+      ws.username = data.username;
+      console.log(`${ws.username} se conectó`);
+
+      // Notificar a todos que alguien se conectó
+      const evento = {
+        type: 'userJoined',
+        username: ws.username
+      };
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(evento));
+        }
+      });
+    } else if (data.type === 'chat') {
+      console.log(`${ws.username}: ${data.text}`);
+
+      // Enviar a todos los clientes
+      const chatMessage = {
+        type: 'chat',
+        username: ws.username,
+        text: data.text
+      };
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(chatMessage));
+        }
+      });
+    }
   });
 
   ws.on('close', () => {
-    console.log('Cliente desconectado');
+    if (ws.username) {
+      console.log(`${ws.username} se desconectó`);
+
+      // Notificar a todos que alguien se desconectó
+      const evento = {
+        type: 'userLeft',
+        username: ws.username
+      };
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(evento));
+        }
+      });
+    }
   });
 
   ws.on('error', (error) => {
