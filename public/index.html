@@ -96,9 +96,6 @@
           type: 'setUsername',
           username: currentUsername
         }));
-
-        inputEl.disabled = false;
-        sendBtn.disabled = false;
       } else {
         ws.close();
       }
@@ -113,7 +110,10 @@
         data = JSON.parse(event.data);
       }
 
-      if (data.type === 'chat') {
+      if (data.type === 'usernameSet') {
+        inputEl.disabled = false;
+        sendBtn.disabled = false;
+      } else if (data.type === 'chat') {
         const message = document.createElement('div');
         message.className = 'message';
         message.innerHTML = `<strong>${data.username}:</strong> ${data.text}`;

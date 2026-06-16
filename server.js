@@ -13,38 +13,53 @@ wss.on('connection', (ws) => {
   ws.username = null;
 
   ws.on('message', (message) => {
-    const data = JSON.parse(message);
+    try {
+      const data = JSON.parse(message);
 
-    if (data.type === 'setUsername') {
-      ws.username = data.username;
-      console.log(`${ws.username} se conectó`);
+      if (data.type === 'setUsername') {
+        ws.username = data.username;
+        console.log(`${ws.username} se conectó`);
 
-      // Notificar a todos que alguien se conectó
-      const evento = {
-        type: 'userJoined',
-        username: ws.username
-      };
+        // Confirmar al cliente que el username fue asignado
+        ws.send(JSON.stringify({
+          type: 'usernameSet',
+          username: ws.username
+        }));
 
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(evento));
+        // Notificar a todos que alguien se conectó
+        const evento = {
+          type: 'userJoined',
+          username: ws.username
+        };
+
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN && client !== ws) {
+            client.send(JSON.stringify(evento));
+          }
+        });
+      } else if (data.type === 'chat') {
+        if (!ws.username) {
+          console.error('Chat recibido sin username asignado');
+          return;
         }
-      });
-    } else if (data.type === 'chat') {
-      console.log(`${ws.username}: ${data.text}`);
 
-      // Enviar a todos los clientes
-      const chatMessage = {
-        type: 'chat',
-        username: ws.username,
-        text: data.text
-      };
+        console.log(`${ws.username}: ${data.text}`);
 
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(chatMessage));
-        }
-      });
+        // Enviar a todos los clientes
+        const chatMessage = {
+          type: 'chat',
+          username: ws.username,
+          text: data.text
+        };
+
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(chatMessage));
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error al procesar mensaje:', error);
     }
   });
 
